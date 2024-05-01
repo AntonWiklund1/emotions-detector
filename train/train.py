@@ -5,6 +5,7 @@ import constants
 lambda_coeff = constants.lambda_coeff
 T = constants.T
 num_epochs = constants.num_epochs
+torch.manual_seed(42)
 
 def train(model, data_loader, teacher_model, criterion, optimizer, device):
     model.train()
