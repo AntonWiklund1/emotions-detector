@@ -30,3 +30,8 @@ def train(model, data_loader, teacher_model, criterion, optimizer, device):
             optimizer.step()
 
         print(f"Loss: {loss.item()}, Epoch: {epoch}")
+    
+    print("Training finished")
+    # Save the model
+    torch.save(model.state_dict(), "model.pth")
+    
