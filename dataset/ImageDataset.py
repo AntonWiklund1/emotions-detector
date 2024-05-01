@@ -11,7 +11,7 @@ class ImageDataset(Dataset):
             csv_file (string): Path to the csv file with annotations.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        self.data_frame = pd.read_csv(csv_file)
+        self.data_frame = pd.read_csv(csv_file)[:1000]
         self.transform = transform
 
     def __len__(self):
