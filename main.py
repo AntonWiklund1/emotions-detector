@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torchvision.models import resnet50
+from torchvision.models import resnet50, ResNet50_Weights
 from model.model import DeiT
 import constants
 import train.train as train
@@ -16,11 +16,12 @@ patch_size = constants.patch_size
 num_classes = constants.num_classes
 embed_dim = constants.embed_dim
 T = constants.T
+batch_size = constants.batch_size
 
 
 def main():
     model = DeiT(image_size, patch_size, num_classes, embed_dim).to(device)
-    teacher_model = resnet50(pretrained=True).to(device)
+    teacher_model = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
@@ -33,9 +34,8 @@ def main():
 
     csv_file = "./data/train.csv"
     dataset = ImageDataset(csv_file=csv_file, transform=transform)
-    data_loader = DataLoader(dataset, batch_size=32, shuffle=True)
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    # Assuming data_loader is defined
     train(model, data_loader, teacher_model, criterion, optimizer, device)
 
 
