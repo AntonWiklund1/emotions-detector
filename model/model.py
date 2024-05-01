@@ -4,6 +4,9 @@ from torchvision.models import resnet50
 from transformers import ViTModel, ViTConfig
 import constants
 
+torch.manual_seed(42)
+
+
 image_size = constants.image_size
 patch_size = constants.patch_size
 
