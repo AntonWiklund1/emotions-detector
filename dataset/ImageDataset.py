@@ -14,7 +14,7 @@ class ImageDataset(Dataset):
             csv_file (str): Path to the CSV file containing image data and labels.
             transform (callable, optional): Transform to be applied on each image.
         """
-        self.data_frame = pd.read_csv(csv_file)[:1000]  # Load the first 1000 entries
+        self.data_frame = pd.read_csv(csv_file)  # Load the first 1000 entries
         self.transform = transform
 
     def __len__(self):
