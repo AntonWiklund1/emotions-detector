@@ -25,12 +25,14 @@ class DeiT(nn.Module):
         self.config = ViTConfig(
             image_size=image_size,
             patch_size=patch_size,
-            num_hidden_layers=12,
+            num_hidden_layers=8,
             hidden_size=embed_dim,
-            num_attention_heads=12,
+            num_attention_heads=8,
             intermediate_size=embed_dim * 4,  # Common practice is to have 4x the hidden_size
             hidden_act="gelu",
-            layer_norm_eps=1e-12
+            layer_norm_eps=1e-12,
+            hidden_dropout_prob=0.4,
+            attention_probs_dropout_prob=0.4,
         )
 
         self.vit = ViTModel(self.config)
