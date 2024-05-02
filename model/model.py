@@ -42,7 +42,7 @@ class DeiT(nn.Module):
         outputs = self.vit(pixel_values=x)
         embeddings = outputs.last_hidden_state
         
-        # Assuming dist_token is correctly implemented to handle batch size
+        
         embeddings = self.dist_token(embeddings)
         class_logits = self.classifier(embeddings[:, 0])
         dist_logits = self.dist_classifier(embeddings[:, 1])
