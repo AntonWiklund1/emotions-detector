@@ -10,7 +10,7 @@ torch.manual_seed(42)
 
 def train_and_validate(model, data_loader, val_loader, teacher_model, criterion, optimizer, device):
     best_val_loss = float('inf')  # Initialize the best validation loss to infinity
-    print("Training the model...")
+    print(f"Training the model on {device} ")
     for epoch in range(num_epochs):
         model.train()
         teacher_model.eval()
