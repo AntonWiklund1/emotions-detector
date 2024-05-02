@@ -26,26 +26,12 @@ class ImageDataset(Dataset):
         return len(self.data_frame)
 
     def __getitem__(self, idx):
-        """
-        Retrieve an item from the dataset at the specified index.
-
-        Args:
-            idx (int): The index of the item.
-
-        Returns:
-            tuple: Containing an image and its label.
-        """
         img_pixel_str = self.data_frame.iloc[idx]['pixels']
         label = int(self.data_frame.iloc[idx]['emotion'])
+        pixels = np.fromstring(img_pixel_str, dtype=int, sep=' ').reshape(48, 48)
+        image = Image.fromarray(pixels, 'L').convert('RGB')  # Convert grayscale to RGB if necessary
 
-        # Parse the pixel string and prepare the image
-        pixels = list(map(int, img_pixel_str.split()))
-        image = np.array(pixels, dtype=np.uint8).reshape(48, 48)
-        image = Image.fromarray(image).convert('RGB')  # Convert grayscale to RGB
-
-        # Apply the Hugging Face processor if provided
         if self.processor:
-            # Convert PIL image to bytes and process with Hugging Face processor
             image = self.processor(images=image, return_tensors='pt').pixel_values.squeeze(0)
         elif self.transform:
             image = self.transform(image)
