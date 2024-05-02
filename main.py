@@ -9,6 +9,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
+
+
 from evaluation import test, train_and_validate, validate
 
 import warnings
@@ -28,6 +30,8 @@ torch.manual_seed(42)
 def main():
     model = DeiT(image_size, patch_size, num_classes, embed_dim).to(device)
     teacher_model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
+    teacher_model.fc = nn.Linear(in_features=teacher_model.fc.in_features, out_features=num_classes).to(device)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
