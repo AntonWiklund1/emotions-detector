@@ -5,7 +5,7 @@ from facenet_pytorch import MTCNN
 import torch
 
 # Define the duration of the video
-duration = 5  # seconds
+duration = 20  # seconds
 
 # Set up the capture
 cap = cv2.VideoCapture(0)  # Open the default camera
@@ -13,8 +13,8 @@ if not cap.isOpened():
     print("Cannot open camera")
     exit()
 
-# Initialize the MTCNN face detector
-mtcnn = MTCNN(keep_all=True, device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
+# Initialize the MTCNN face detector with increased confidence thresholds
+mtcnn = MTCNN(keep_all=True, device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), thresholds=[0.7, 0.8, 0.8])
 
 # Initialize a list to store the pixel values of all frames
 frame_list = []
@@ -30,16 +30,16 @@ while True:
         break
 
     # Convert the frame to RGB (MTCNN expects RGB)
-    #frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Use MTCNN to detect faces
-    boxes, _ = mtcnn.detect(frame)
+    boxes, _ = mtcnn.detect(frame_rgb)
 
     if boxes is not None:
         for box in boxes:
             x, y, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
             # Extract the face
-            face_img = frame[y:y2, x:x2]
+            face_img = frame_rgb[y:y2, x:x2]
             # Convert to grayscale
             face_gray = cv2.cvtColor(face_img, cv2.COLOR_RGB2GRAY)
             # Resize the face image to 48x48
@@ -59,10 +59,10 @@ while True:
         break
 
     # Delay to capture at 1 fps
-    time.sleep(0.25)
+    time.sleep(0.5)
 
     # Stop after the specified duration
-    if time.time() - start_time > duration:
+    if time.time() - start_time - 1 > duration:
         break
 
 # When everything is done, release the capture
