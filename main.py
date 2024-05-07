@@ -38,8 +38,6 @@ def main():
 
     # Load the models checkpoint if it matches the model architecture
     
-    
-
     base_criterion = nn.CrossEntropyLoss()
     criterion = DistillationLoss(base_criterion, teacher_model, 'soft', lambda_coeff, T)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -57,7 +55,7 @@ def main():
     ])
 
     dataset_csv_file = "./data/train.csv"  # Single dataset file
-    full_dataset = ImageDataset(csv_file=dataset_csv_file, processor=processor)
+    full_dataset = ImageDataset(csv_file=dataset_csv_file, processor=processor, rows=10000)
 
     # Split dataset into train and validation
     train_size = int(0.8 * len(full_dataset))  # 80% of the dataset for training
@@ -72,7 +70,7 @@ def main():
 
     # Test the model
     test_csv_file = "./data/test_with_emotions.csv"
-    test_dataset = ImageDataset(csv_file=test_csv_file, transform=transform)
+    test_dataset = ImageDataset(csv_file=test_csv_file, processor=processor)
     test_data_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     test(model, test_data_loader)
 
