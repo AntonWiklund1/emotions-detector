@@ -1,39 +1,36 @@
 from torch.utils.data import Dataset
-from PIL import Image
 import pandas as pd
 import numpy as np
+from PIL import Image
 import torch
 
-torch.manual_seed(42)
-
 class ImageDataset(Dataset):
-    def __init__(self, csv_file, transform=None, processor=None, rows=None):
+    def __init__(self, csv_file, transform=None, rows=None):
         """
         Initialize the dataset.
 
         Args:
             csv_file (str): Path to the CSV file containing image data and labels.
             transform (callable, optional): Optional transform to be applied on each image.
-            processor (callable, optional): Processor from Hugging Face for image preprocessing.
-            rows (int, optional): Number of rows to read from the CSV file.
+            rows (int, optional): Number of rows to read from the CSV file. Useful for debugging or reduced dataset training.
         """
         self.data_frame = pd.read_csv(csv_file, nrows=rows)
         self.transform = transform
-        self.processor = processor
-
+        
     def __len__(self):
         """Return the number of items in the dataset."""
         return len(self.data_frame)
 
     def __getitem__(self, idx):
+        # Retrieve the pixel string and convert it into numpy array of integers
         img_pixel_str = self.data_frame.iloc[idx]['pixels']
-        label = int(self.data_frame.iloc[idx]['emotion'])
-        pixels = np.fromstring(img_pixel_str, dtype=int, sep=' ').reshape(48, 48)
-        image = Image.fromarray(pixels, 'L').convert('RGB')  # Convert grayscale to RGB if necessary
+        pixels = np.array(img_pixel_str.split(), dtype=np.uint8).reshape(48, 48)
+        image = Image.fromarray(pixels, 'L')  # Create a PIL image in grayscale ('L' mode)
 
-        if self.processor:
-            image = self.processor(images=image, return_tensors='pt').pixel_values.squeeze(0)
-        elif self.transform:
+        # Apply the transform if it is specified
+        if self.transform:
             image = self.transform(image)
 
+        # Retrieve the label and convert it to integer
+        label = int(self.data_frame.iloc[idx]['emotion'])
         return image, label
