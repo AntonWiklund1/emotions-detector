@@ -5,8 +5,14 @@ from evaluation.validate import validate
 from torch.utils.tensorboard import SummaryWriter
 
 import datetime
-current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
+now = datetime.datetime.now()
+
+# Format the datetime
+formatted_time = now.strftime("%Y%m%d-%H%M%S")
+
+# Assign to current_time
+current_time = formatted_time
 
 writer = SummaryWriter(f'runs/ed_{current_time}')
 
@@ -26,13 +32,14 @@ def train_and_validate(model, data_loader, val_loader, teacher_model, criterion,
         for batch_idx, (images, labels) in enumerate(data_loader):
             images, labels = images.to(device), labels.to(device)
 
+            optimizer.zero_grad()
+
             # Forward pass through the student model
             class_logits, dist_logits = model(images)
 
-            # Ensure to pass 'images' as 'inputs' to the DistillationLoss
+            # get the loss between the student and teacher model
             loss = criterion(images, (class_logits, dist_logits), labels)
 
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
