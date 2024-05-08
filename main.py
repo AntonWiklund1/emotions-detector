@@ -15,6 +15,8 @@ from evaluation.train import load_checkpoint
 import warnings
 warnings.filterwarnings("ignore")
 
+import matplotlib.pyplot as plt
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 image_size = constants.image_size
 patch_size = constants.patch_size
@@ -27,6 +29,11 @@ lambda_coeff = constants.lambda_coeff
 
 #SET SEED
 torch.manual_seed(42)
+
+def visualize_dataset(dataset, index):
+    image, _ = dataset[index]
+    plt.imshow(image.squeeze().permute(1, 2, 0))
+    plt.show()
 
 def main():
     model = DeiT(image_size, patch_size, num_classes, embed_dim).to(device)
@@ -49,14 +56,20 @@ def main():
         print("Model checkpoint does not match the model architecture. Training the model from scratch")
 
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.RandomHorizontalFlip(p=0.5),  # Flips the image horizontally with a probability of 0.5
+        transforms.RandomRotation(degrees=10),  # Rotates the image by up to 10 degrees
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),  # Random affine transformation
+        transforms.Resize((224,224)),  # Resize back to 48x48 if transformations cause size changes
+        transforms.ToTensor(),  # Convert the PIL Image to a tensor
+        transforms.Normalize(mean=[0.485], std=[0.229])  # Normalization
     ])
 
     dataset_csv_file = "./data/train.csv"  # Single dataset file
-    full_dataset = ImageDataset(csv_file=dataset_csv_file, processor=processor, rows=10000)
+    full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform, rows=10000)
 
+    for i in range(5):
+        visualize_dataset(full_dataset, i)
+    
     # Split dataset into train and validation
     train_size = int(0.8 * len(full_dataset))  # 80% of the dataset for training
     val_size = len(full_dataset) - train_size  # Remaining 20% for validation
@@ -70,7 +83,7 @@ def main():
 
     # Test the model
     test_csv_file = "./data/test_with_emotions.csv"
-    test_dataset = ImageDataset(csv_file=test_csv_file, processor=processor)
+    test_dataset = ImageDataset(csv_file=test_csv_file, transform=transform)
     test_data_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     test(model, test_data_loader)
 
