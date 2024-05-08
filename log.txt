@@ -1,0 +1,4 @@
+ed_resnet_fold_1_0508-1805 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
+ed_resnet_fold_1_0508-1809 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
+ed_resnet_fold_1_0508-1814 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
+ed_resnet_fold_1_0508-1814 - Best global validation loss: 1.1030027503552644, validation accuracy: 59.09090909090909
