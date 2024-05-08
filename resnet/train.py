@@ -3,10 +3,12 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import datetime
-from .res_model import resnet50
+from .res_model import resnet
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
+from torch.optim.lr_scheduler import StepLR
+
 from sklearn.model_selection import KFold
 import colorama
 from colorama import Fore, Style
@@ -19,23 +21,33 @@ now = datetime.datetime.now()
 formatted_time = now.strftime("%m%d-%H%M")
 current_time = formatted_time
 
-num_epochs = 100
-batch_size = 128
-folds = 5
-lr = 0.01
 
+#hyperparameters
+batch_size = 256
+lr = 0.01
+step_size = 30
+gamma = 0.1 # Multiplicative factor of learning rate decay
+
+
+# Training parameters
+num_epochs = 100
+folds = 5
 torch.manual_seed(42)
 
 best_global_val_loss = float('inf')
+best_global_val_accuracy = float('-inf')
 
-def train_and_validate(model, train_loader, val_loader, fold_number):
+def train_and_validate(model, train_loader, val_loader, fold_number, criterion, optimizer, scheduler):
 
     global best_global_val_loss
+    global best_global_val_accuracy
 
-    writer = SummaryWriter(f"runs/ed_resnet_fold_{fold_number}_{current_time}")
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    tensorboard_title = f"ed_resnet_fold_{fold_number}_{current_time}"
+    writer = SummaryWriter(f"runs/{tensorboard_title}")
+    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, step_size={step_size}, gamma={gamma}")
+    
     best_val_loss = float('inf')
+    best_val_accuracy = float('-inf')
 
     for epoch in range(num_epochs):
         model.train()
@@ -52,14 +64,18 @@ def train_and_validate(model, train_loader, val_loader, fold_number):
         print(f"Epoch: {epoch}, Validation loss: {val_loss}, Validation accuracy: {val_accuracy}")
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            best_val_accuracy = val_accuracy
             if best_val_loss < best_global_val_loss:
                 best_global_val_loss = best_val_loss
+                best_global_val_accuracy = best_val_accuracy
                 torch.save(model.state_dict(), "model.pth")
                 print(f"{Fore.GREEN}New best validation loss: {val_loss} Saving model...{Style.RESET_ALL}")
         writer.add_scalar('Validation loss', val_loss, epoch)
         writer.add_scalar('Validation accuracy', val_accuracy, epoch)
+        scheduler.step()
     
     writer.close()
+    log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss}, validation accuracy: {best_global_val_accuracy}")
 
 def validate(model,val_loader, criterion):
     model.eval()
@@ -88,6 +104,10 @@ def visualize_dataset(dataset, index):
     plt.imshow(image.squeeze(), cmap='gray')  # Assuming the image is grayscale
     plt.show()
 
+def log(text):
+    """Log the text to log.txt"""
+    with open("log.txt", 'a') as f:
+        f.write(text + '\n')
 
 def main():
     
@@ -103,13 +123,13 @@ def main():
 
     dataset_csv_file = "./data/train.csv"
     full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform)
-    for i in range(5):
+    for i in range(2):
         visualize_dataset(full_dataset, i)
 
     folds = create_folds(full_dataset, n_splits=5)
     print(f"Training {len(folds)} folds on {device}")
     for i, (train_idx, val_idx) in enumerate(folds):
-        model = resnet50().to(device)
+        model = resnet().to(device)
         print(f"Training fold {i+1}/{len(folds)}")
         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx)
         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx)
@@ -117,8 +137,12 @@ def main():
         train_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=train_subsampler, num_workers=4, pin_memory=True)
         val_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=val_subsampler)
 
-        train_and_validate(model, train_loader, val_loader, i+1)
-            
+        criterion = torch.nn.CrossEntropyLoss()
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+
+        train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler)
+        break # Remove this line to train all folds
 
 if __name__ == '__main__':
     main()
