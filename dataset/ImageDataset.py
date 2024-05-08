@@ -27,6 +27,9 @@ class ImageDataset(Dataset):
         pixels = np.array(img_pixel_str.split(), dtype=np.uint8).reshape(48, 48)
         image = Image.fromarray(pixels, 'L')  # Create a PIL image in grayscale ('L' mode)
 
+        #convert grayscale to RGB
+        #image = image.convert('RGB')
+        
         # Apply the transform if it is specified
         if self.transform:
             image = self.transform(image)
