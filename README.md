@@ -8,6 +8,8 @@
 
 # Links to read
 
-https://arxiv.org/pdf/2103.14030
-
+DeiT
 https://arxiv.org/abs/2012.12877
+
+Resnet
+https://arxiv.org/pdf/1512.03385
