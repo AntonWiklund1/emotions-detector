@@ -14,6 +14,8 @@ import colorama
 from colorama import Fore, Style
 colorama.init()
 
+import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 
 # Format the datetime
@@ -30,7 +32,7 @@ gamma = 0.1 # Multiplicative factor of learning rate decay
 
 
 # Training parameters
-num_epochs = 100
+num_epochs = 120
 folds = 5
 torch.manual_seed(42)
 
@@ -44,12 +46,13 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
 
     tensorboard_title = f"ed_resnet_fold_{fold_number}_{current_time}"
     writer = SummaryWriter(f"runs/{tensorboard_title}")
-    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, step_size={step_size}, gamma={gamma}")
+    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, step_size={step_size}, gamma={gamma},optimizer=AdamW, scheduler=StepLR")
     
     best_val_loss = float('inf')
     best_val_accuracy = float('-inf')
 
     for epoch in range(num_epochs):
+        total_loss = 0.0
         model.train()
         for batch_idx, (images, labels) in enumerate(train_loader):
             images, labels = images.to(device), labels.to(device)
@@ -58,7 +61,11 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            total_loss += loss.item()
             writer.add_scalar('Training loss', loss.item(), epoch * len(train_loader) + batch_idx)
+    
+        avg_training_loss = total_loss / (num_epochs * len(train_loader))
+        print(f"Average training loss: {avg_training_loss}")
 
         val_loss, val_accuracy = validate(model, val_loader, criterion)
         print(f"Epoch: {epoch}, Validation loss: {val_loss}, Validation accuracy: {val_accuracy}")
@@ -111,18 +118,33 @@ def log(text):
 
 def main():
     
+    df = pd.read_csv("./data/train.csv")
+
+    # Convert pixel strings to numpy arrays
+    pixel_arrays = np.array([np.array(row.split(), dtype=np.uint8).reshape(48, 48) for row in df['pixels']])
+
+    # Flatten the arrays to compute global mean and std
+    all_pixels = pixel_arrays.ravel()
+    mean = all_pixels.mean() / 255.0  # Scale to [0, 1]
+    std = all_pixels.std() / 255.0
+
+    print(f"Mean: {mean}, Std: {std}")
+
     transform = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),  # Flips the image horizontally with a probability of 0.5
         transforms.RandomRotation(degrees=10),  # Rotates the image by up to 10 degrees
         transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),  # Random affine transformation
         transforms.Resize((48, 48)),  # Resize back to 48x48 if transformations cause size changes
         transforms.ToTensor(),  # Convert the PIL Image to a tensor
-        transforms.Normalize(mean=[0.485], std=[0.229])  # Normalization
+        transforms.Normalize(mean=[mean], std=[std])  # Normalizes the image as expected by the pre-trained model
     ])
 
 
     dataset_csv_file = "./data/train.csv"
     full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform)
+
+
+
     for i in range(2):
         visualize_dataset(full_dataset, i)
 
