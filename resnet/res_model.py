@@ -73,16 +73,16 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_channels = 16  # Initial number of channels after the first convolution layer
         # Initial convolutional layer before the first block
-        self.conv1 = nn.Conv2d(image_channels, 16, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(image_channels, 16, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU()
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        #self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         # ResNet layers: each layer is a sequence of blocks
         self.layer1 = self._make_layer(block, layers[0], out_channels=16, stride=1)
         self.layer2 = self._make_layer(block, layers[1], out_channels=32, stride=2)
         self.layer3 = self._make_layer(block, layers[2], out_channels=64, stride=2)
-        self.layer4 = self._make_layer(block, layers[3], out_channels=128, stride=2)  # Ends with 2048 channels
+        self.layer4 = self._make_layer(block, layers[3], out_channels=128, stride=2)  
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128 * 4, num_classes)  # Final fully connected layer
@@ -91,7 +91,7 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        #x = self.maxpool(x)
 
         # Passing the input through all the residual layers
         x = self.layer1(x)
