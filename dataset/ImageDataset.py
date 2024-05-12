@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 import torch
+torch.manual_seed(42)
+
 
 class ImageDataset(Dataset):
     def __init__(self, csv_file, transform=None, rows=None):
