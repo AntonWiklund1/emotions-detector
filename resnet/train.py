@@ -7,7 +7,7 @@ from .res_model import resnet
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 
 from sklearn.model_selection import KFold
 import colorama
@@ -79,7 +79,7 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
                 print(f"{Fore.GREEN}New best validation loss: {val_loss} Saving model...{Style.RESET_ALL}")
         writer.add_scalar('Validation loss', val_loss, epoch)
         writer.add_scalar('Validation accuracy', val_accuracy, epoch)
-        scheduler.step()
+        scheduler.step(val_loss)
     
     writer.close()
     log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss}, validation accuracy: {best_global_val_accuracy}")
@@ -161,7 +161,8 @@ def main():
 
         criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-        scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+
 
         train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler)
         break # Remove this line to train all folds
