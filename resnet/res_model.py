@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+torch.manual_seed(42)
+
 class block(nn.Module):
     """
     A basic building block for a ResNet architecture.
@@ -15,49 +17,41 @@ class block(nn.Module):
 
     def __init__(self, in_channels, out_channels, identity_downsample=None, stride=1):
         super(block, self).__init__()
-        self.expansion = 4  # Expands the channel size by a factor of 4 at the end of the block
-        
-        # First 1x1 convolution: it changes the channel dimensionality without affecting spatial dimensions
+        self.expansion = 4
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
-        self.bn1 = nn.BatchNorm2d(out_channels)  # Normalizes the output of conv1
-
-        # Second 3x3 convolution: the core convolutional layer that processes the data spatially
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.cbam1 = CBAM(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1)
-        self.bn2 = nn.BatchNorm2d(out_channels)  # Normalizes the output of conv2
-
-        # Third 1x1 convolution: increases the channel depth by a factor of self.expansion
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.cbam2 = CBAM(out_channels)
         self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, stride=1, padding=0)
-        self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)  # Normalizes the output of conv3
-
-        self.relu = nn.ReLU()  # Activation function to introduce non-linearity
-        
-        self.identity_downsample = identity_downsample  # Optional module for adjusting dimensions
+        self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
+        self.relu = nn.ReLU()
+        self.identity_downsample = identity_downsample
 
     def forward(self, x):
-        identity = x  # Save the input for adding after processing
+        identity = x
 
-        # First convolutional layer followed by normalization and activation
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
 
-        # Second convolutional layer
         x = self.conv2(x)
         x = self.bn2(x)
+        x = self.cbam2(x)
         x = self.relu(x)
 
-        # Third convolutional layer
         x = self.conv3(x)
         x = self.bn3(x)
-
-        # If an identity_downsample module is provided, apply it to match dimensions
+        
         if self.identity_downsample is not None:
             identity = self.identity_downsample(identity)
 
-        x += identity  # Add the original input to the output of the convolutional layers
-        x = self.relu(x)  # Final activation function
+        x += identity
+        x = self.relu(x)
 
         return x
+
 
 class ResNet(nn.Module):
     """
@@ -125,6 +119,49 @@ class ResNet(nn.Module):
             layers.append(block(self.in_channels, out_channels))  # These use a stride of 1 by default
 
         return nn.Sequential(*layers)
+
+class ChannelAttention(nn.Module):
+    def __init__(self, in_channels, reduction_ratio=16):
+        super(ChannelAttention, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Conv2d(in_channels, in_channels // reduction_ratio, 1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(in_channels // reduction_ratio, in_channels, 1, bias=False)
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = self.fc(self.avg_pool(x))
+        max_out = self.fc(self.max_pool(x))
+        out = avg_out + max_out
+        return self.sigmoid(out)
+
+class SpatialAttention(nn.Module):
+    def __init__(self, kernel_size=7):
+        super(SpatialAttention, self).__init__()
+        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        x = torch.cat([avg_out, max_out], dim=1)
+        x = self.conv1(x)
+        return self.sigmoid(x)
+
+class CBAM(nn.Module):
+    def __init__(self, in_channels, reduction_ratio=16, kernel_size=7):
+        super(CBAM, self).__init__()
+        self.channel_attention = ChannelAttention(in_channels, reduction_ratio)
+        self.spatial_attention = SpatialAttention(kernel_size)
+
+    def forward(self, x):
+        x = x * self.channel_attention(x)
+        x = x * self.spatial_attention(x)
+        return x
+
 
 def resnet(img_channels=1, num_classes=7):
     return ResNet(block, [3, 4, 23, 3], img_channels, num_classes)
