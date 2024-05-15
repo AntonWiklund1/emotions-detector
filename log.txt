@@ -1,4 +1,58 @@
-ed_resnet_fold_1_0508-1805 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
-ed_resnet_fold_1_0508-1809 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
 ed_resnet_fold_1_0508-1814 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1
 ed_resnet_fold_1_0508-1814 - Best global validation loss: 1.1030027503552644, validation accuracy: 59.09090909090909
+ed_resnet_fold_1_0510-1048 - Hyperparameters: batch_size=256, lr=0.1, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR 
+# bad
+ed_resnet_fold_1_0510-1103 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR # 200 rows testing if i can overfit
+ed_r1120 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0510-1144 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR ## using better stride and no first max pooling to not shrink the image to much first and also better normalisation
+ed_resnet_fold_1_0510-1144 - Best global validation loss: 0.9473347560219143, validation accuracy: 65.65656565656566
+ed_resnet_fold_1_0510-1713 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0510-1713 - Best global validation loss: 0.9667343471361243, validation accuracy: 62.93974225008708
+ed_resnet_fold_1_0512-1208 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=ReduceLROnPlateau
+ed_resnet_fold_1_0512-1208 - Best global validation loss: 0.9553826995517897, validation accuracy: 64.64646464646465
+ed_resnet_fold_1_0512-2010 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0512-2147 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1010 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1012 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1024 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1227 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1228 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1232 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1234 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1242 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1324 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1, optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1507 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1, optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1554 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1, optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1637 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1, optimizer=AdamW, scheduler=StepLR, criterion=FocalLoss
+ed_resnet_fold_1_0513-1717 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1750 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=120, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-1750 - Best global validation loss: 0.9575710348460985, validation accuracy: 64.43747823058168
+ed_resnet_fold_1_0513-2009 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-2012 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0513-2015 - Hyperparameters: batch_size=128, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1021 - Hyperparameters: batch_size=128, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1027 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1032 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1110 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1115 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1118 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1240 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1357 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1357 - Best global validation loss: 19.404825708140496, validation accuracy: 47.21351445489376
+ed_resnet_fold_1_0514-1554 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1625 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1625 - Best global validation loss: 20.86441137479699, validation accuracy: 60.867293625914314
+ed_resnet_fold_1_0514-1916 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-1916 - Best global validation loss: 14.972316472426705, validation accuracy: 57.05329153605015
+ed_resnet_fold_1_0514-2235 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2248 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2252 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2256 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2259 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2302 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2308 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2309 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2318 - Hyperparameters: batch_size=256, lr=0.01, num_epochs=100, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2318 - Best global validation loss: 0.9401310189910557, validation accuracy: 65.60431905259492
+ed_resnet_fold_1_0515-1104 - Hyperparameters: batch_size=128, lr=0.01, num_epochs=1000, step_size=30, gamma=0.1,optimizer=AdamW, scheduler=StepLR
+ed_resnet_fold_1_0514-2318 - Best global validation loss: 0.9401310189910557, validation accuracy: 65.60431905259492
