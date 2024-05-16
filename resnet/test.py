@@ -39,17 +39,10 @@ def analyze_with_gradcam(test_loader, model, grad_cam, device, num_samples=5):
 def test():
     model = resnet().to(device)
     
-    # Load the train.csv to calculate mean and std for normalization
-    df = pd.read_csv("./data/train.csv")
-    pixel_arrays = np.array([np.array(row.split(), dtype=np.uint8).reshape(48, 48) for row in df['pixels']])
-    all_pixels = pixel_arrays.ravel()
-    mean = all_pixels.mean() / 255.0
-    std = all_pixels.std() / 255.0
-
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[mean], std=[std])  # Normalize using training mean and std
+        transforms.Normalize(mean=[0.5077], std=[0.2550])  # Normalize using training mean and std
     ])
 
     test_df = ImageDataset('./data/test_with_emotions.csv', transform=transform)
@@ -58,6 +51,9 @@ def test():
     model.load_state_dict(torch.load('last.pth'))
     model.eval()
 
+    #print the information of the model
+    print(model)
+    
     correct = 0
     total = 0
 
