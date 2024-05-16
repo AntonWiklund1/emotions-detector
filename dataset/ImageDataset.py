@@ -18,6 +18,9 @@ class ImageDataset(Dataset):
         """
         self.data_frame = pd.read_csv(csv_file, nrows=rows)
         self.transform = transform
+
+        # Filter out black or corrupted images
+        self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.is_valid_image)]
         
     def __len__(self):
         """Return the number of items in the dataset."""
@@ -29,8 +32,8 @@ class ImageDataset(Dataset):
         pixels = np.array(img_pixel_str.split(), dtype=np.uint8).reshape(48, 48)
         image = Image.fromarray(pixels, 'L')  # Create a PIL image in grayscale ('L' mode)
 
-        #convert grayscale to RGB
-        #image = image.convert('RGB')
+        # Convert grayscale to RGB
+        # image = image.convert('RGB')
         
         # Apply the transform if it is specified
         if self.transform:
@@ -39,3 +42,8 @@ class ImageDataset(Dataset):
         # Retrieve the label and convert it to integer
         label = int(self.data_frame.iloc[idx]['emotion'])
         return image, label
+    
+    def is_valid_image(self, pixel_string):
+        pixels = np.array(pixel_string.split(), dtype=np.uint8)
+        return np.any(pixels > 0)  # Check if any pixel is not black
+
