@@ -54,7 +54,7 @@ class GradCAM:
             cam = cam / np.max(cam)
             return cam
 
-    def visualize_cam(self, cam, original_image, alpha=0.6):
+    def visualize_cam(self, cam, original_image, alpha=0.4):
         # Ensure cam is a numpy array and float32
         cam = np.array(cam, dtype=np.float32)
         
@@ -83,6 +83,3 @@ class GradCAM:
         plt.imshow(np.uint8(255 * cam))
         plt.axis('off')
         plt.show()
-
-
-
