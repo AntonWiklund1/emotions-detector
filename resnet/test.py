@@ -57,7 +57,7 @@ def test():
     correct = 0
     total = 0
 
-    target_layer = model.layer4[2].conv3  # Change this to the layer you want to target
+    target_layer = model.layer4[-1].conv3  # Change this to the layer you want to target
     grad_cam = GradCAM(model, target_layer)
 
     with torch.no_grad():
