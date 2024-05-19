@@ -1,5 +1,7 @@
 import torch
-from .res_model import resnet
+from .resnet import resnet100, resnet50
+from .SEBlockResNet import se_resnet50
+from .ResNeXt import resnext50
 from .grad_cam import GradCAM
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
@@ -37,7 +39,7 @@ def analyze_with_gradcam(test_loader, model, grad_cam, device, num_samples=5):
                 samples_processed += 1
 
 def test():
-    model = resnet().to(device)
+    
     
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -47,12 +49,15 @@ def test():
 
     test_df = ImageDataset('./data/test_with_emotions.csv', transform=transform)
     test_loader = DataLoader(test_df, batch_size=128, shuffle=True)
-    
+
+
+    model = resnext50().to(device)
     model.load_state_dict(torch.load('last.pth'))
+
     model.eval()
 
     #print the information of the model
-    print(model)
+    #print(model)
     
     correct = 0
     total = 0
