@@ -59,3 +59,6 @@ https://arxiv.org/abs/1502.01852
 
 ResNet strikes back: An improved training procedure in timm
 https://arxiv.org/abs/2110.00476
+
+Cbam
+https://arxiv.org/abs/1807.06521
