@@ -2,12 +2,16 @@ import torch
 from torch import nn
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data.sampler import WeightedRandomSampler
+
 import datetime
-from .res_model import resnet
+from .resnet import resnet50, resnet100
+from .SEBlockResNet import se_resnet50
+from .ResNeXt import resnext50
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR, StepLR
+from torch.optim.lr_scheduler import StepLR  # Import StepLR
 
 from sklearn.model_selection import KFold
 import colorama
@@ -18,6 +22,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # Format the datetime
 now = datetime.datetime.now()
 formatted_time = now.strftime("%m%d-%H%M")
@@ -25,11 +32,16 @@ current_time = formatted_time
 
 # Hyperparameters
 batch_size = 128
-lr = 8e-3
+lr =  5e-4  # 5e-4 for resnet50
 weight_decay = 0.02
-warmup_epochs = 5
 num_epochs = 100
-#empty cache
+step_size = 30  # Number of epochs to decay learning rate
+gamma = 0.1  # Factor by which the learning rate will be reduced
+
+# Uncomment these if you want to switch back to the previous scheduler
+#warmup_epochs = 5
+
+# Empty cache
 torch.cuda.empty_cache()
 torch.manual_seed(42)
 
@@ -44,7 +56,7 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
 
     tensorboard_title = f"ed_resnet_fold_{fold_number}_{current_time}"
     writer = SummaryWriter(f"runs/{tensorboard_title}")
-    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, optimizer=AdamW, scheduler=CosineAnnealingLR with warmup")
+    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, optimizer=AdamW, scheduler=StepLR with step_size={step_size}, gamma={gamma}")
     
     best_val_loss = float('inf')
     best_val_accuracy = float('-inf')
@@ -73,11 +85,11 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
             if param.grad is not None:
                 writer.add_histogram(f'{name}.grad', param.grad, epoch)
 
-        avg_training_loss = total_loss / (len(train_loader))
-        print(f"Average training loss: {avg_training_loss}")
+        avg_training_loss = total_loss / len(train_loader)
+        print(f"Epoch [{epoch+1}/{num_epochs}], Average training loss: {avg_training_loss:.4f}")
 
         val_loss, val_accuracy = validate(model, val_loader, criterion)
-        print(f"Epoch: {epoch}, Validation loss: {val_loss}, Validation accuracy: {val_accuracy}")
+        print(f"Epoch [{epoch+1}/{num_epochs}], Validation loss: {val_loss:.4f}, Validation accuracy: {val_accuracy:.2f}%")
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_val_accuracy = val_accuracy
@@ -85,13 +97,13 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
                 best_global_val_loss = best_val_loss
                 best_global_val_accuracy = best_val_accuracy
                 torch.save(model.state_dict(), "model.pth")
-                print(f"{Fore.GREEN}New best validation loss: {val_loss} Saving model...{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}New best validation loss: {val_loss:.4f} Saving model...{Style.RESET_ALL}")
         writer.add_scalar('Validation loss', val_loss, epoch)
         writer.add_scalar('Validation accuracy', val_accuracy, epoch)
         scheduler.step()  # Scheduler step at the end of each epoch
     
     writer.close()
-    log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss}, validation accuracy: {best_global_val_accuracy}")
+    log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss:.4f}, validation accuracy: {best_global_val_accuracy:.2f}%")
     torch.save(model.state_dict(), "last.pth")
 
 def validate(model, val_loader, criterion):
@@ -132,7 +144,6 @@ def visualize_dataset(dataset, num_images=16):
     
     plt.tight_layout()
     plt.show()
-
 
 def log(text):
     """Log the text to log.txt"""
@@ -181,6 +192,13 @@ def visualize_predictions(model, dataset, device, num_samples=5):
     
     plt.show()
 
+def calculate_class_weights(data_frame):
+    class_counts = data_frame['emotion'].value_counts().sort_index().values
+    total_count = len(data_frame)
+    class_weights = total_count / (len(class_counts) * class_counts)
+    return class_weights
+
+
 def main():
     df = pd.read_csv("./data/train.csv")
 
@@ -195,14 +213,12 @@ def main():
     print(f"Mean: {mean}, Std: {std}")
 
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),  # Resize the image to 224x224
-        transforms.RandomHorizontalFlip(p=0.5),  # Flips the image horizontally with a probability of 0.5
-        transforms.RandomRotation(degrees=15),  # Rotates the image by 15 degrees
-        #transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),  # Randomly change the brightness, contrast, saturation and hue
-        transforms.RandAugment(num_ops=6, magnitude=5),  # RandAugment with 6 operations and magnitude of 0.5
-        #transforms.RandomResizedCrop((224, 224), scale=(0.7, 1.0), ratio=(0.75, 1.33)),
-        transforms.ToTensor(),  # Convert the PIL Image to a tensor
-        transforms.Normalize(mean=[mean], std=[std])  # Normalizes the image as expected by the pre-trained model
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=15),
+        transforms.RandAugment(num_ops=6, magnitude=5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[mean], std=[std])
     ])
 
     dataset_csv_file = "./data/train.csv"
@@ -212,43 +228,41 @@ def main():
 
     folds = create_folds(full_dataset, n_splits=5)
     print(f"Training {len(folds)} folds on {device}")
+
+    # Calculate class weights
+    class_weights = calculate_class_weights(df)
+    sample_weights = [class_weights[label] for label in df['emotion']]
+    
     for i, (train_idx, val_idx) in enumerate(folds):
-        
-        model = resnet().to(device)
+        model = resnext50().to(device)
         print(f"Training fold {i+1}/{len(folds)}")
+        
+        # Use SubsetRandomSampler for training and validation indices
         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx, generator=torch.Generator().manual_seed(42))
         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx, generator=torch.Generator().manual_seed(42))
-        
-        train_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=train_subsampler, num_workers=8, pin_memory=True)
+
+        # Create a new sampler for the training subset
+        train_subset_weights = [sample_weights[idx] for idx in train_idx]
+        train_sampler = WeightedRandomSampler(weights=train_subset_weights, num_samples=len(train_subset_weights), replacement=True)
+
+        train_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=True)
         val_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=val_subsampler, num_workers=8, pin_memory=True)
 
-        criterion = torch.nn.CrossEntropyLoss()
+        class_weights_tensor = torch.tensor(class_weights).float().to(device)
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights_tensor)
         optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        #Combine a warmup scheduler with the cosine annealing scheduler
-        def lr_lambda(epoch):
-            if epoch < warmup_epochs:
-                return float(epoch) / float(max(1, warmup_epochs)) # Linear warmup
-            return max(0.0, float(num_epochs - epoch) / float(max(1, num_epochs - warmup_epochs))) # Cosine annealing
-
-        scheduler = LambdaLR(optimizer, lr_lambda)
-        cosine_scheduler = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
-        scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer, schedulers=[scheduler, cosine_scheduler], milestones=[warmup_epochs])
-
-
-        # Initialize GradScaler for mixed precision training
+        scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
         scaler = torch.cuda.amp.GradScaler()
 
         train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler, scaler)
 
-        # Plot confusion matrix for this fold
         emotion_classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
         plot_confusion_matrix(model, val_loader, emotion_classes, device)
-        
-        # Visualize some predictions
         visualize_predictions(model, full_dataset, device, num_samples=5)
 
         break  # Remove this line to train all folds
 
 if __name__ == '__main__':
     main()
+
