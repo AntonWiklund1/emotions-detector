@@ -1,2 +1,2 @@
-from .resnet import resnet100, resnet50
+from .resnet import own_resnet100, own_resnet50
 from .SEBlockResNet import se_resnet50
