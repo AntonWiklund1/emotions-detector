@@ -3,26 +3,25 @@ from torch import nn
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import WeightedRandomSampler
-
 import datetime
-from .resnet import resnet50, resnet100
+from .resnet import own_resnet50, own_resnet100
 from .SEBlockResNet import se_resnet50
-from .ResNeXt import resnext50
+from .ResNeXt import resnext50, resnext101
+from .visualize import plot_confusion_matrix, visualize_predictions, visualize_dataset
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torch.optim.lr_scheduler import StepLR  # Import StepLR
-
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
 from sklearn.model_selection import KFold
 import colorama
 from colorama import Fore, Style
 colorama.init()
-
+from torchvision.models import resnet50, resnext50_32x4d, ResNeXt50_32X4D_Weights, ResNet50_Weights
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 import warnings
+
 warnings.filterwarnings("ignore")
 
 # Format the datetime
@@ -32,14 +31,11 @@ current_time = formatted_time
 
 # Hyperparameters
 batch_size = 128
-lr =  5e-4  # 5e-4 for resnet50
+lr = 1e-4
 weight_decay = 0.02
 num_epochs = 100
-step_size = 30  # Number of epochs to decay learning rate
-gamma = 0.1  # Factor by which the learning rate will be reduced
-
-# Uncomment these if you want to switch back to the previous scheduler
-#warmup_epochs = 5
+step_size = 30
+gamma = 0.1
 
 # Empty cache
 torch.cuda.empty_cache()
@@ -56,7 +52,7 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
 
     tensorboard_title = f"ed_resnet_fold_{fold_number}_{current_time}"
     writer = SummaryWriter(f"runs/{tensorboard_title}")
-    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, optimizer=AdamW, scheduler=StepLR with step_size={step_size}, gamma={gamma}")
+    log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, optimizer=AdamW, scheduler=ReduceLROnPlateau, weight_decay={weight_decay}")
     
     best_val_loss = float('inf')
     best_val_accuracy = float('-inf')
@@ -100,7 +96,7 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
                 print(f"{Fore.GREEN}New best validation loss: {val_loss:.4f} Saving model...{Style.RESET_ALL}")
         writer.add_scalar('Validation loss', val_loss, epoch)
         writer.add_scalar('Validation accuracy', val_accuracy, epoch)
-        scheduler.step()  # Scheduler step at the end of each epoch
+        scheduler.step(val_loss)  # Scheduler step at the end of each epoch
     
     writer.close()
     log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss:.4f}, validation accuracy: {best_global_val_accuracy:.2f}%")
@@ -129,68 +125,10 @@ def create_folds(full_dataset, n_splits):
     kfold = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     return list(kfold.split(full_dataset))
 
-def visualize_dataset(dataset, num_images=16):
-    rows = int(num_images ** 0.5)
-    cols = int(num_images ** 0.5)
-    
-    fig, axes = plt.subplots(rows, cols, figsize=(10, 10))
-    indices = np.random.choice(len(dataset), num_images, replace=False)
-    
-    for i, ax in enumerate(axes.flat):
-        idx = indices[i]
-        image, _ = dataset[idx]
-        ax.imshow(image.squeeze(), cmap='gray')  # Assuming the image is grayscale
-        ax.axis('off')
-    
-    plt.tight_layout()
-    plt.show()
-
 def log(text):
     """Log the text to log.txt"""
     with open("log.txt", 'a') as f:
         f.write(text + '\n')
-
-def plot_confusion_matrix(model, val_loader, classes, device):
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
-    y_true = []
-    y_pred = []
-    model.eval()
-    with torch.no_grad():
-        for images, labels in val_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            _, preds = torch.max(outputs, 1)
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(preds.cpu().numpy())
-    
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes)
-    disp.plot(cmap=plt.cm.Blues)
-    plt.show()
-
-def visualize_predictions(model, dataset, device, num_samples=5):
-    emotion_classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
-    model.eval()
-    indices = np.random.choice(len(dataset), num_samples, replace=False)
-    fig, axes = plt.subplots(1, num_samples, figsize=(15, 5))
-    
-    with torch.no_grad():
-        for i, idx in enumerate(indices):
-            image, label = dataset[idx]
-            image = image.unsqueeze(0).to(device)
-            with torch.cuda.amp.autocast():
-                output = model(image)
-                _, pred = torch.max(output, 1)
-            image = image.cpu().squeeze().numpy()
-            label = label
-            pred = pred.item()
-            
-            axes[i].imshow(image, cmap='gray')
-            axes[i].set_title(f"Pred: {emotion_classes[pred]}\nTrue: {emotion_classes[label]}")
-            axes[i].axis('off')
-    
-    plt.show()
 
 def calculate_class_weights(data_frame):
     class_counts = data_frame['emotion'].value_counts().sort_index().values
@@ -198,6 +136,24 @@ def calculate_class_weights(data_frame):
     class_weights = total_count / (len(class_counts) * class_counts)
     return class_weights
 
+# Define the function to load pretrained ResNet50 weights into your ResNeXt model
+def load_pretrained_weights(model, pretrained_model):
+    pretrained_dict = pretrained_model.state_dict()
+    model_dict = model.state_dict()
+
+    # Filter out unnecessary keys
+    matched_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and v.size() == model_dict[k].size()}
+    
+    # Update model's weights
+    model_dict.update(matched_dict)
+    model.load_state_dict(model_dict)
+
+    # Calculate the number of matched weights
+    num_matched = len(matched_dict)
+    num_total = len(pretrained_dict)
+    print(f"Number of matched weights: {num_matched}/{num_total}")
+
+    return num_matched, num_total
 
 def main():
     df = pd.read_csv("./data/train.csv")
@@ -216,10 +172,13 @@ def main():
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomRotation(degrees=15),
-        transforms.RandAugment(num_ops=6, magnitude=5),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
         transforms.ToTensor(),
+        transforms.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random'),
         transforms.Normalize(mean=[mean], std=[std])
     ])
+
 
     dataset_csv_file = "./data/train.csv"
     full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform)
@@ -232,11 +191,17 @@ def main():
     # Calculate class weights
     class_weights = calculate_class_weights(df)
     sample_weights = [class_weights[label] for label in df['emotion']]
+    pretrained_model = resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.IMAGENET1K_V1, progress=True)
     
+
     for i, (train_idx, val_idx) in enumerate(folds):
-        model = resnext50().to(device)
-        print(f"Training fold {i+1}/{len(folds)}")
         
+        model = resnext50().to(device)
+        model.load_state_dict(torch.load("last.pth"))
+
+        #load_pretrained_weights(model, pretrained_model)
+        print(f"Training fold {i+1}/{len(folds)}")
+       
         # Use SubsetRandomSampler for training and validation indices
         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx, generator=torch.Generator().manual_seed(42))
         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx, generator=torch.Generator().manual_seed(42))
@@ -249,10 +214,12 @@ def main():
         val_loader = DataLoader(full_dataset, batch_size=batch_size, sampler=val_subsampler, num_workers=8, pin_memory=True)
 
         class_weights_tensor = torch.tensor(class_weights).float().to(device)
-        criterion = torch.nn.CrossEntropyLoss(weight=class_weights_tensor)
+        criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
         optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+        #scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=7)
+
         scaler = torch.cuda.amp.GradScaler()
 
         train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler, scaler)
@@ -265,4 +232,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
