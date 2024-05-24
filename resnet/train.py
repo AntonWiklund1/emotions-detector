@@ -1,13 +1,12 @@
+import os
 import torch
 from torch import nn
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import WeightedRandomSampler
 import datetime
-from .resnet import own_resnet50, own_resnet100
-from .SEBlockResNet import se_resnet50
-from .ResNeXt import resnext50, resnext101
-from .visualize import plot_confusion_matrix, visualize_predictions, visualize_dataset
+from model.ResNeXt import resnext50
+from visualize.visualize import plot_confusion_matrix, visualize_predictions, visualize_dataset
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -16,7 +15,7 @@ from sklearn.model_selection import KFold
 import colorama
 from colorama import Fore, Style
 colorama.init()
-from torchvision.models import resnet50, resnext50_32x4d, ResNeXt50_32X4D_Weights, ResNet50_Weights
+from torchvision.models import resnext50_32x4d, ResNeXt50_32X4D_Weights
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -31,9 +30,9 @@ current_time = formatted_time
 
 # Hyperparameters
 batch_size = 128
-lr = 1e-4
-weight_decay = 0.02
-num_epochs = 100
+lr = 1e-3
+weight_decay = 0.03
+num_epochs = 150
 step_size = 30
 gamma = 0.1
 
@@ -46,35 +45,36 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 best_global_val_loss = float('inf')
 best_global_val_accuracy = float('-inf')
 
-def train_and_validate(model, train_loader, val_loader, fold_number, criterion, optimizer, scheduler, scaler):
+def train_and_validate(model, train_loader, val_loader, fold_number, criterion, optimizer, scheduler, scaler, start_epoch=0, start_step=0):
     global best_global_val_loss
     global best_global_val_accuracy
 
     tensorboard_title = f"ed_resnet_fold_{fold_number}_{current_time}"
     writer = SummaryWriter(f"runs/{tensorboard_title}")
     log(f"{tensorboard_title} - Hyperparameters: batch_size={batch_size}, lr={lr}, num_epochs={num_epochs}, optimizer=AdamW, scheduler=ReduceLROnPlateau, weight_decay={weight_decay}")
-    
+
     best_val_loss = float('inf')
     best_val_accuracy = float('-inf')
 
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         total_loss = 0.0
         model.train()
         for batch_idx, (images, labels) in enumerate(train_loader):
+            step = start_step + epoch * len(train_loader) + batch_idx
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
-            
+
             with torch.cuda.amp.autocast():
                 outputs = model(images)
                 loss = criterion(outputs, labels)
-            
+
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-            
+
             total_loss += loss.item()
-            writer.add_scalar('Training loss', loss.item(), epoch * len(train_loader) + batch_idx)
-        
+            writer.add_scalar('Training loss', loss.item(), step)
+
         # Log histograms of weights and gradients
         for name, param in model.named_parameters():
             writer.add_histogram(name, param, epoch)
@@ -92,15 +92,33 @@ def train_and_validate(model, train_loader, val_loader, fold_number, criterion, 
             if best_val_loss < best_global_val_loss:
                 best_global_val_loss = best_val_loss
                 best_global_val_accuracy = best_val_accuracy
-                torch.save(model.state_dict(), "model.pth")
+                torch.save({
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'scaler_state_dict': scaler.state_dict(),
+                    'epoch': epoch,
+                    'step': step
+                }, "checkpoint.pth")
                 print(f"{Fore.GREEN}New best validation loss: {val_loss:.4f} Saving model...{Style.RESET_ALL}")
         writer.add_scalar('Validation loss', val_loss, epoch)
         writer.add_scalar('Validation accuracy', val_accuracy, epoch)
         scheduler.step(val_loss)  # Scheduler step at the end of each epoch
-    
+
     writer.close()
     log(f"{tensorboard_title} - Best global validation loss: {best_global_val_loss:.4f}, validation accuracy: {best_global_val_accuracy:.2f}%")
     torch.save(model.state_dict(), "last.pth")
+
+def load_checkpoint(filepath, model, optimizer, scheduler, scaler):
+    checkpoint = torch.load(filepath)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    scaler.load_state_dict(checkpoint['scaler_state_dict'])
+    start_epoch = checkpoint['epoch'] + 1
+    start_step = checkpoint['step']
+    return model, optimizer, scheduler, scaler, start_epoch, start_step
+
 
 def validate(model, val_loader, criterion):
     model.eval()
@@ -179,8 +197,7 @@ def main():
         transforms.Normalize(mean=[mean], std=[std])
     ])
 
-
-    dataset_csv_file = "./data/train.csv"
+    dataset_csv_file = "./data/filtered_dataset.csv"
     full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform)
 
     visualize_dataset(full_dataset, num_images=64)
@@ -192,16 +209,36 @@ def main():
     class_weights = calculate_class_weights(df)
     sample_weights = [class_weights[label] for label in df['emotion']]
     pretrained_model = resnext50_32x4d(weights=ResNeXt50_32X4D_Weights.IMAGENET1K_V1, progress=True)
-    
+
+    # Initialize variables to resume training if checkpoint exists
+    start_epoch = 0
+    start_step = 0
+    checkpoint_path = "checkpoint.pth"
+
+    # Load the checkpoint if it exists
+    if os.path.exists(checkpoint_path):
+        print(f"Checkpoint found at {checkpoint_path}. Resuming training.")
+        model = resnext50().to(device)
+        optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=7)
+        scaler = torch.cuda.amp.GradScaler()
+        model, optimizer, scheduler, scaler, start_epoch, start_step = load_checkpoint(checkpoint_path, model, optimizer, scheduler, scaler)
+    else:
+        print("No checkpoint found. Starting training from scratch.")
+        model = resnext50().to(device)
+        #model.load_state_dict(torch.load('last.pth'))
+        load_pretrained_weights(model, pretrained_model)
+        optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=7)
+        scaler = torch.cuda.amp.GradScaler()
 
     for i, (train_idx, val_idx) in enumerate(folds):
-        
-        model = resnext50().to(device)
-        model.load_state_dict(torch.load("last.pth"))
+        if start_epoch > 0:
+            print(f"Resuming training from epoch {start_epoch}, step {start_step}")
 
-        #load_pretrained_weights(model, pretrained_model)
+        # Continue training or start fresh if no checkpoint is loaded
         print(f"Training fold {i+1}/{len(folds)}")
-       
+
         # Use SubsetRandomSampler for training and validation indices
         train_subsampler = torch.utils.data.SubsetRandomSampler(train_idx, generator=torch.Generator().manual_seed(42))
         val_subsampler = torch.utils.data.SubsetRandomSampler(val_idx, generator=torch.Generator().manual_seed(42))
@@ -215,14 +252,8 @@ def main():
 
         class_weights_tensor = torch.tensor(class_weights).float().to(device)
         criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
-        optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        #scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
-        scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=7)
-
-        scaler = torch.cuda.amp.GradScaler()
-
-        train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler, scaler)
+        train_and_validate(model, train_loader, val_loader, i+1, criterion, optimizer, scheduler, scaler, start_epoch=start_epoch, start_step=start_step)
 
         emotion_classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
         plot_confusion_matrix(model, val_loader, emotion_classes, device)
