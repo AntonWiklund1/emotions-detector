@@ -10,15 +10,16 @@ def validate(model, teacher_model, val_loader, criterion, device):
             # Forward pass through the student model
             class_logits, dist_logits = model(images)
             # Forward pass through the teacher model for distillation evaluation
-            teacher_outputs = teacher_model(images)
+            teacher_logits = teacher_model(images)
             # Compute the loss using all required inputs
-            loss = criterion(images, (class_logits, dist_logits), labels)
+            loss = criterion((class_logits, dist_logits), teacher_logits, labels)
             total_loss += loss.item()
-            # Calculate accuracy if needed
+            # Calculate accuracy
             _, predicted = torch.max(class_logits.data, 1)
             total_accuracy += (predicted == labels).sum().item()
 
     avg_loss = total_loss / len(val_loader)
     avg_accuracy = total_accuracy / len(val_loader.dataset) * 100
     return avg_loss, avg_accuracy
+
 
