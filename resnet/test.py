@@ -1,9 +1,7 @@
 import torch
-from .resnet import own_resnet100, own_resnet50
-from .SEBlockResNet import se_resnet50
-from .ResNeXt import resnext50
+from model.ResNeXt import resnext50
 from .grad_cam import GradCAM
-from .visualize import visualize_dataset
+from visualize.visualize import visualize_dataset
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -40,13 +38,14 @@ def test():
         transforms.Normalize(mean=[0.5077], std=[0.2550])
     ])
 
-    test_df = ImageDataset('./data/test_with_emotions.csv', transform=transform)
+    test_df = ImageDataset('./data/filtered_test_dataset.csv', transform=transform)
 
-    visualize_dataset(test_df, num_images=64)
-    test_loader = DataLoader(test_df, batch_size=256, shuffle=True, num_workers=8, pin_memory=True)
+    #visualize_dataset(test_df, num_images=64)
+    test_loader = DataLoader(test_df, batch_size=128, shuffle=True, num_workers=8, pin_memory=True)
 
     model = resnext50().to(device)
-    model.load_state_dict(torch.load('model.pth'))
+    checkpoint = torch.load('checkpoint.pth')
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
     correct = 0
@@ -78,7 +77,7 @@ def test():
             correct += (predicted == labels).sum().item()
 
             # Analyze Grad-CAM for the first batch only
-            # analyze_with_gradcam(images, labels, model, grad_cam, device, num_samples=5)
+            #analyze_with_gradcam(images, labels, model, grad_cam, device, num_samples=5)
             #break  # Only analyze the first batch for Grad-CAM
 
     accuracy = 100 * correct / total
