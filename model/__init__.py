@@ -1,2 +1,3 @@
-from model.model import DeiT
-from model.losses import DistillationLoss
+from model.DeiT import DeiT
+from model.loss import distillation_loss
+from model.ResNeXt import resnext50
