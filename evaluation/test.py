@@ -17,4 +17,6 @@ def test(model, data_loader):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        print(f"Accuracy: {100 * correct / total}%")
+        accuracy = correct / total * 100
+        
+    return accuracy
