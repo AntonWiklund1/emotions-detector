@@ -1,92 +1,114 @@
 import torch
 import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights
-from model.model import DeiT
-import constants
-import evaluation.train as train
+import torch.optim as optim
+import numpy as np
+from model.DeiT import DeiT
+from model.loss import distillation_loss
 from dataset import ImageDataset
-from torchvision import transforms
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
-from transformers import AutoImageProcessor, AutoModelForImageClassification
-from evaluation import test, train_and_validate, validate
-from model.losses import DistillationLoss
+from model.ResNeXt import resnext50
+import constants
+from evaluation import test, train_and_validate
 from evaluation.train import load_checkpoint
+from torchvision import transforms
+from torch.utils.data import DataLoader, random_split
 import warnings
-warnings.filterwarnings("ignore")
-
+import pandas as pd
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
+from visualize.visualize import visualize_dataset
+
+warnings.filterwarnings("ignore")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 image_size = constants.image_size
 patch_size = constants.patch_size
 num_classes = constants.num_classes
 embed_dim = constants.embed_dim
-T = constants.T
 batch_size = constants.batch_size
 lr = constants.lr
-lambda_coeff = constants.lambda_coeff
+wight_decay = constants.weight_decay
+num_epochs = constants.num_epochs
 
-#SET SEED
+
+# Set seed for reproducibility
 torch.manual_seed(42)
 
-def visualize_dataset(dataset, index):
-    image, _ = dataset[index]
-    plt.imshow(image.squeeze().permute(1, 2, 0))
-    plt.show()
-
 def main():
-    model = DeiT(image_size, patch_size, num_classes, embed_dim).to(device)
-    # teacher_model = resnet50(weights=ResNet50_Weights.DEFAULT).to(device)
-    # teacher_model.fc = nn.Linear(in_features=teacher_model.fc.in_features, out_features=num_classes).to(device)
-
-    processor = AutoImageProcessor.from_pretrained("ycbq999/facial_emotions_image_detection")
-    teacher_model = AutoModelForImageClassification.from_pretrained("ycbq999/facial_emotions_image_detection").to(device)
-
-    # Load the models checkpoint if it matches the model architecture
+    # Initialize SummaryWriter once
+    writer = SummaryWriter('runs/deit')
     
-    base_criterion = nn.CrossEntropyLoss()
-    criterion = DistillationLoss(base_criterion, teacher_model, 'soft', lambda_coeff, T)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    df = pd.read_csv("./data/filtered_dataset.csv")
 
-    try:
-        model, optimizer, best_val_loss = load_checkpoint(model, optimizer, device)
-        print("Loaded model checkpoint")
-    except RuntimeError:
-        print("Model checkpoint does not match the model architecture. Training the model from scratch")
+    # Convert pixel strings to numpy arrays
+    pixel_arrays = np.array([np.array(row.split(), dtype=np.uint8).reshape(48, 48) for row in df['pixels']])
+
+    # Flatten the arrays to compute global mean and std
+    all_pixels = pixel_arrays.ravel()
+    mean = all_pixels.mean() / 255.0  # Scale to [0, 1]
+    std = all_pixels.std() / 255.0
+
+    print(f"Mean: {mean}, Std: {std}")
 
     transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),  # Flips the image horizontally with a probability of 0.5
-        transforms.RandomRotation(degrees=10),  # Rotates the image by up to 10 degrees
-        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=10),  # Random affine transformation
-        transforms.Resize((224,224)),  # Resize back to 48x48 if transformations cause size changes
-        transforms.ToTensor(),  # Convert the PIL Image to a tensor
-        transforms.Normalize(mean=[0.485], std=[0.229])  # Normalization
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=15),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+        transforms.ToTensor(),
+        transforms.RandomErasing(p=0.3, scale=(0.02, 0.33), ratio=(0.3, 3.3), value='random'),
+        transforms.Normalize(mean=[mean], std=[std])
     ])
 
-    dataset_csv_file = "./data/train.csv"  # Single dataset file
-    full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform, rows=10000)
+    model = DeiT(image_size, patch_size, num_classes, embed_dim).to(device)
 
-    for i in range(5):
-        visualize_dataset(full_dataset, i)
-    
+    teacher_model = resnext50().to(device)
+    teacher_model_weights = torch.load('checkpoint.pth')
+    teacher_model.load_state_dict(teacher_model_weights['model_state_dict'])
+    teacher_model.eval()  # Set teacher model to evaluation mode
+
+    print("lr: ", lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=wight_decay)
+    #cosine annealing learning rate
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=0, last_epoch=-1)
+
+    dataset_csv_file = "./data/filtered_dataset.csv"
+    full_dataset = ImageDataset(csv_file=dataset_csv_file, transform=transform)
+
+    visualize_dataset(full_dataset, num_images=64)
+
     # Split dataset into train and validation
-    train_size = int(0.8 * len(full_dataset))  # 80% of the dataset for training
-    val_size = len(full_dataset) - train_size  # Remaining 20% for validation
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
 
-    train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
-    val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    #oversample train dataset
+
+    train_data_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    val_data_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+
+    criterion = distillation_loss
 
     # Train and validate the model
-    train_and_validate(model, train_data_loader, val_data_loader, teacher_model, criterion, optimizer, device, best_val_loss)
+    train_and_validate(model, train_data_loader, val_data_loader, teacher_model, criterion, optimizer, scheduler, writer)
 
     # Test the model
     test_csv_file = "./data/test_with_emotions.csv"
-    test_dataset = ImageDataset(csv_file=test_csv_file, transform=transform)
-    test_data_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    test(model, test_data_loader)
+
+    transform_test = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[mean], std=[std])
+    ])
+
+    test_dataset = ImageDataset(csv_file=test_csv_file, transform=transform_test)
+    test_data_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+    test_acc = test(model, test_data_loader)
+
+    print(f"Test accuracy: {test_acc}")
+
+    # Close the writer after training and testing
+    writer.close()
 
 if __name__ == "__main__":
     main()
-
