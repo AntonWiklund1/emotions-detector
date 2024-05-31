@@ -10,7 +10,7 @@ torch.manual_seed(42)
 
 class ImageDataset(Dataset):
     """Custom dataset for loading images from CSV files with pixel values and emotion labels."""
-    def __init__(self,csv_file, fix=None, transform=None, rows=None):
+    def __init__(self,csv_file, filter=None, transform=None, rows=None):
         self.data_frame = pd.read_csv(csv_file, nrows=rows)
         
         print(f"Loaded {len(self.data_frame)} images from {csv_file}")
@@ -19,14 +19,14 @@ class ImageDataset(Dataset):
             self.data_frame = self.data_frame.drop(self.data_frame.columns[0], axis=1)
         
         self.transform = transform
-        self.fix = fix
+        self.filter = filter
         
-        if self.fix:
-            self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.is_valid_image)]
+        if self.filter:
             self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.contains_face)]
-            self.data_frame = self.remove_duplicate_images(self.data_frame)
-            print(f"Filtered to {len(self.data_frame)} images")
 
+        self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.is_valid_image)]
+        self.data_frame = self.remove_duplicate_images(self.data_frame)
+        print(f"Filtered to {len(self.data_frame)} images")
 
         self.data_frame.reset_index(drop=True, inplace=True)
 
