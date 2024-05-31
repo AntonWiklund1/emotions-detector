@@ -1,12 +1,11 @@
 import torch
-from model.ResNeXt import resnext50, ResNeXtBottleneck, ResNeXt
+from model.ResNeXt import ResNeXtBottleneck, ResNeXt
 from torch.quantization import QuantStub, DeQuantStub, fuse_modules
 from dataset.ImageDataset import ImageDataset
 from torchvision import transforms
 import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
-import pickle
 
 # Define the quantizable model
 class QuantizableResNeXt(ResNeXt):
@@ -17,7 +16,7 @@ class QuantizableResNeXt(ResNeXt):
 
     def forward(self, x):
         x = self.quant(x)
-        x = super().forward(x)
+        x = self._forward_impl(x)
         x = self.dequant(x)
         return x
 
@@ -40,19 +39,21 @@ def fuse_model(model):
                 fuse_modules(m.identity_downsample, ['0', '1'], inplace=True)
 
 if __name__ == "__main__":
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
     # Load the trained model
-    model_fp32 = quantizable_resnext50()
-    checkpoint = torch.load('checkpoint.pth')
+    model_fp32 = quantizable_resnext50().to(device)
+    checkpoint = torch.load('checkpoint.pth', map_location=device)
     model_fp32.load_state_dict(checkpoint['model_state_dict'])
     model_fp32.eval()
 
     # Print model to identify layers
-    #print(model_fp32)
+    print(model_fp32)
 
     # Fuse model layers
     fuse_model(model_fp32)
 
-    # Set the quantization configuration
+    # Set the quantization configuration to use per_tensor_affine
     model_fp32.qconfig = torch.quantization.get_default_qconfig('fbgemm')
 
     # Load and process the dataset
@@ -86,9 +87,15 @@ if __name__ == "__main__":
     full_dataset = ImageDataset(csv_file="./data/train.csv", transform=transform, rows=1000)
     calibration_loader = DataLoader(full_dataset, batch_size=128, shuffle=True, num_workers=8, pin_memory=True)
 
+    print("Calibrating model...")
     # Run calibration
     for input, _ in calibration_loader:
+        input = input.to(device)
         model_fp32(input)
+    print("Calibration complete.")
+
+    # Move the model to CPU before quantization
+    model_fp32.to('cpu')
 
     # Convert to quantized version
     torch.quantization.convert(model_fp32, inplace=True)
@@ -96,6 +103,6 @@ if __name__ == "__main__":
     # The model is now quantized and ready for inference
     model_int8 = model_fp32
 
-    # Save the quantized model as a .pkl file
-    with open('quantized_ResNeXt50.pkl', 'wb') as f:
-        pickle.dump(model_int8, f)
+    # Save the quantized model using torch.jit.save
+    scripted_model = torch.jit.script(model_int8)
+    torch.jit.save(scripted_model, 'quantized_ResNeXt50_scripted.pth')
