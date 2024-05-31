@@ -1,8 +1,8 @@
 image_size = 224
 num_classes = 7
 batch_size = 128
-lr = 1e-4
-num_epochs = 30
+lr = 1e-3
+num_epochs = 150
 step_size = 30
 gamma = 0.1
 
