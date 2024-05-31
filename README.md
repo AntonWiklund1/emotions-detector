@@ -3,62 +3,53 @@
 ## Preliminary Steps
 
 1. Download the dataset from the following link: [emotions-detector.zip](https://assets.01-edu.org/ai-branch/project3/emotions-detector.zip)
-
 2. Extract the dataset and move the CSV files into the "data" folder.
+3. To start TensorBoard, use the following command:
+   ```bash
+   tensorboard --logdir=runs
+   ```
 
-# Ingredients and hyper-parameters used for ResNet-50 training by Ross Wightman, Hugo Touvron, and Hervé Jégou
+## Model
 
-Train res: 160
-Test res: 224
-Epochs: 100
-Batch size: 2048
-Optimizer: LAMB
-LR: 8 X 10-3
-decay rate: cosine
-Weight decay: 0.02
-warmup epochs: 5
-H. flip: yes
-RRC: yes
-Rand Augment 6/0.5
-Test crop ratio: 0.95
-Mixed precision: yes
+The model used is a ResNeXt architecture with a Convolutional Block Attention Module (CBAM).
 
-# What i will do
+- [ResNeXt Paper](https://arxiv.org/pdf/1611.05431)
+- [CBAM Paper](https://arxiv.org/abs/1807.06521)
 
-train res: 224
-test res: 224
-epochs: 100
-batch size: 128
-Oprimizer: AdamW
-lr: 8 x 10-3
-decay rate: cosine
-Weight decay: 0.02
-warmup epochs: 5
-H. flip: yes
-RRC: yes
-Rand Augment 6/0.5
-Test crop ratio: 0.95
-Mixed precision: yes
+![ResNeXt model with CBam](model.png)
 
-# Links to read
+## Model Description
 
-The project
-https://github.com/01-edu/public/blob/master/subjects/ai/emotions-detector/README.md
+### Initialization
 
-the datset
-https://www.kaggle.com/competitions/challenges-in-representation-learning-facial-expression-recognition-challenge/overview
+The weights for the convolutional and linear layers are initialized using He initialization (Kaiming Normal).
 
-DeiT
-https://arxiv.org/abs/2012.12877
+- [He Initialization Paper](https://arxiv.org/abs/1502.01852)
 
-Resnet
-https://arxiv.org/pdf/1512.03385
+The initial loss is approximately 1.9, which is appropriate since the initial learning rate should be log(1/C) where C is the number of classes (C = 7).
 
-He initialization whihc conv2d uses
-https://arxiv.org/abs/1502.01852
+## Hyperparameters
 
-ResNet strikes back: An improved training procedure in timm
-https://arxiv.org/abs/2110.00476
+- Train resolution: 224
+- Test resolution: 224
+- Epochs: 150
+- Batch size: 128
+- Optimizer: AdamW
+- Learning rate (lr): 1e-3
+- Weight decay: 0.03
+- Label smoothing: 0.1
 
-Cbam
-https://arxiv.org/abs/1807.06521
+## Useful Links
+
+- [Project Description](https://github.com/01-edu/public/blob/master/subjects/ai/emotions-detector/README.md)
+- [Dataset](https://www.kaggle.com/competitions/challenges-in-representation-learning-facial-expression-recognition-challenge/overview)
+- [DeiT Paper](https://arxiv.org/abs/2012.12877)
+- [DeiT Video](https://www.youtube.com/watch?v=viClVMxiwI0)
+- [ResNet Paper](https://arxiv.org/pdf/1512.03385)
+- [He Initialization Paper](https://arxiv.org/abs/1502.01852)
+- [ResNet Strikes Back: Improved Training Procedure in TIMM](https://arxiv.org/abs/2110.00476)
+- [CBAM Paper](https://arxiv.org/abs/1807.06521)
+- [ResNeXt Paper](https://arxiv.org/pdf/1611.05431)
+
+The model can be found at
+https://drive.google.com/file/d/11ce8kRUZ8rETBFT84_TuasEm7MWgLkVv/view?usp=drive_link
