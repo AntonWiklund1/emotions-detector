@@ -1,11 +1,14 @@
 import torch
-from model.ResNeXt import ResNeXtBottleneck, ResNeXt
+from model.ResNeXt import ResNeXt, ResNeXtBottleneck
 from torch.quantization import QuantStub, DeQuantStub, fuse_modules
 from dataset.ImageDataset import ImageDataset
 from torchvision import transforms
 import pandas as pd
 import numpy as np
 from torch.utils.data import DataLoader
+
+# Set the quantization backend to 'qnnpack'
+torch.backends.quantized.engine = 'qnnpack'
 
 # Define the quantizable model
 class QuantizableResNeXt(ResNeXt):
@@ -53,8 +56,11 @@ if __name__ == "__main__":
     # Fuse model layers
     fuse_model(model_fp32)
 
-    # Set the quantization configuration to use per_tensor_affine
-    model_fp32.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+    # Set the quantization configuration to use qnnpack
+    model_fp32.qconfig = torch.quantization.get_default_qconfig('qnnpack')
+
+    # Prepare the model for static quantization
+    torch.quantization.prepare(model_fp32, inplace=True)
 
     # Load and process the dataset
     df = pd.read_csv("./data/train.csv")
@@ -68,9 +74,6 @@ if __name__ == "__main__":
     std = all_pixels.std() / 255.0
 
     print(f"Mean: {mean}, Std: {std}")
-
-    # Prepare the model for static quantization
-    torch.quantization.prepare(model_fp32, inplace=True)
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
