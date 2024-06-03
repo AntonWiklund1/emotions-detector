@@ -90,6 +90,10 @@ class ResNeXt(nn.Module):
         self._initialize_weights()
 
     def forward(self, x):
+        return self._forward_impl(x)
+        
+    
+    def _forward_impl(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
