@@ -1,8 +1,33 @@
 import cv2
 import time
 import pandas as pd
-from facenet_pytorch import MTCNN
 import torch
+from facenet_pytorch import MTCNN
+from torchvision import transforms
+import numpy as np
+from model.ResNeXt import resnext50
+from PIL import Image
+
+
+# Load the model
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = resnext50().to(device)
+checkpoint = torch.load('checkpoint.pth', map_location=device)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Load the mean and std for normalization
+df = pd.read_csv("./data/test_with_emotions.csv")
+pixel_arrays = np.array([np.array(row.split(), dtype=np.uint8).reshape(48, 48) for row in df['pixels']])
+all_pixels = pixel_arrays.ravel()
+mean = all_pixels.mean() / 255.0
+std = all_pixels.std() / 255.0
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[mean], std=[std])
+])
 
 # Define the duration of the video
 duration = 20  # seconds
@@ -14,10 +39,7 @@ if not cap.isOpened():
     exit()
 
 # Initialize the MTCNN face detector with increased confidence thresholds
-mtcnn = MTCNN(keep_all=True, device=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), thresholds=[0.7, 0.8, 0.8])
-
-# Initialize a list to store the pixel values of all frames
-frame_list = []
+mtcnn = MTCNN(keep_all=True, device=device, thresholds=[0.7, 0.8, 0.8])
 
 start_time = time.time()
 
@@ -44,33 +66,37 @@ while True:
             face_gray = cv2.cvtColor(face_img, cv2.COLOR_RGB2GRAY)
             # Resize the face image to 48x48
             face_resized = cv2.resize(face_gray, (48, 48))
+            
+            # convert the face to a pil image
+            face_pil = Image.fromarray(face_resized)
+            
 
-            # Flatten the 48x48 image to a 1D array of 2304 elements
-            flat_image = face_resized.flatten()
+            # Convert the face to a tensor and apply transformations
+            face_tensor = transform(face_pil).unsqueeze(0).to(device)
 
-            # Append the flattened image to the list
-            frame_list.append(pd.Series(flat_image))
 
-            # Draw a rectangle around the face in the original frame
+            # Predict the facial expression
+            with torch.no_grad():
+                with torch.cuda.amp.autocast():
+                    outputs = model(face_tensor)
+                _, predicted = torch.max(outputs.data, 1)
+
+            # Map the predicted label to the corresponding emotion
+            emotion_map = {0: 'Angry', 1: 'Disgust', 2: 'Fear', 3: 'Happy', 4: 'Sad', 5: 'Surprise', 6: 'Neutral'}
+            predicted_emotion = emotion_map[predicted.item()]
+
+            # Draw a rectangle around the face and display the predicted emotion
             cv2.rectangle(frame, (x, y), (x2, y2), (255, 0, 0), 2)
+            cv2.putText(frame, predicted_emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) == ord('q'):
         break
 
-    # Delay to capture at 1 fps
-    time.sleep(0.5)
-
     # Stop after the specified duration
-    if time.time() - start_time - 1 > duration:
+    if time.time() - start_time > duration:
         break
 
 # When everything is done, release the capture
 cap.release()
 cv2.destroyAllWindows()
-
-# Convert the list of Series to a DataFrame
-all_frames = pd.concat(frame_list, axis=1).T
-
-# Save the DataFrame to a single CSV file
-all_frames.to_csv('all_frames.csv', header=False, index=False)
