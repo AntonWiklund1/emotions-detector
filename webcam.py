@@ -48,7 +48,12 @@ if not cap.isOpened():
 # Initialize the VideoWriter object for grayscale images
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Define the codec
 fps = 30.0  # Set the desired fps value
-out = cv2.VideoWriter('./results/output.mp4', fourcc, fps, (48, 48), False)  # False for grayscale
+out_grayscale = cv2.VideoWriter('./results/output.mp4', fourcc, fps, (48, 48), False)  # False for grayscale
+
+# Initialize the VideoWriter object for the original frames
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+out_original = cv2.VideoWriter('./results/input_video.mp4', fourcc, fps, (frame_width, frame_height), True)  # True for color
 
 # Initialize the MTCNN face detector with increased confidence thresholds
 mtcnn = MTCNN(keep_all=True, device=device, thresholds=[0.7, 0.8, 0.8])
@@ -64,6 +69,7 @@ while True:
         print("Can't receive frame (stream end?). Exiting ...")
         break
 
+    orignal_frame = frame.copy()
     # Convert the frame to RGB (MTCNN expects RGB)
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
@@ -110,7 +116,8 @@ while True:
 
             # Write the grayscale face image to the video file multiple times to match the fps
             for _ in range(frames_to_add):
-                out.write(face_resized)
+                out_grayscale.write(face_resized)
+                out_original.write(orignal_frame)
                 frame_count += 1
 
     # Display the resulting frame
@@ -124,5 +131,6 @@ while True:
 
 # When everything is done, release the capture and writer
 cap.release()
-out.release()
+out_grayscale.release()
+out_original.release()
 cv2.destroyAllWindows()
