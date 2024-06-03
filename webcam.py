@@ -47,7 +47,8 @@ if not cap.isOpened():
 
 # Initialize the VideoWriter object for grayscale images
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Define the codec
-out = cv2.VideoWriter('./results/output.mp4', fourcc, 20.0, (48, 48), False)  # False for grayscale
+fps = 30.0  # Set the desired fps value
+out = cv2.VideoWriter('./results/output.mp4', fourcc, fps, (48, 48), False)  # False for grayscale
 
 # Initialize the MTCNN face detector with increased confidence thresholds
 mtcnn = MTCNN(keep_all=True, device=device, thresholds=[0.7, 0.8, 0.8])
@@ -102,10 +103,15 @@ while True:
             cv2.rectangle(frame, (x, y), (x2, y2), (255, 0, 0), 2)
             cv2.putText(frame, predicted_emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
-            # Write the grayscale face image to the video file
-            out.write(face_resized)
+            # Calculate the number of times to write the frame to achieve the desired fps
+            elapsed_time = time.time() - start_time
+            frames_elapsed = elapsed_time * fps
+            frames_to_add = int(frames_elapsed - frame_count)
 
-    frame_count += 1
+            # Write the grayscale face image to the video file multiple times to match the fps
+            for _ in range(frames_to_add):
+                out.write(face_resized)
+                frame_count += 1
 
     # Display the resulting frame
     cv2.imshow('frame', frame)
