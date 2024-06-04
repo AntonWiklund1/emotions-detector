@@ -27,8 +27,6 @@ import constants
 from .validate import validate
 from .predict import test
 
-from torch_lr_finder import LRFinder
-
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 torch.backends.cudnn.benchmark = True
