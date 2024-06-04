@@ -1,0 +1,52 @@
+
+My model is called a ResNeXt model with CBAM. It's like a mix of three different types of models: VGG, ResNet, and Inception. You can see how the model looks by checking the picture called "model.png".
+
+To teach the model to do its job well, I trained it five times, which we call "folds". Each time, I trained it for 150 rounds, known as "epochs". Altogether, this training took 50 hours.
+
+A ResNeXt model is a type of deep learning model used for recognizing patterns, such as images. It's part of a family of models known as convolutional neural networks (CNNs), which are great at tasks like image classification.
+
+The "ResNeXt" name comes from combining two ideas:
+
+ResNet: This is short for "Residual Network." It has a special way of learning by using shortcut connections. These shortcuts help the model learn better by making it easier to pass information through the layers.
+
+Next: This part of the name means that the model is taking the next step in improving how networks work. It does this by using a group of paths or branches at each layer, which are called "cardinality." This way, instead of just having one path for the data to flow through, it has multiple paths, making the model more flexible and powerful.
+
+In simple terms, a ResNeXt model is like a more advanced version of a ResNet, with more paths for data to travel through, which helps it learn and recognize patterns in a more effective way.
+
+A ResNeXt model with CBAM is great for detecting emotions in images, even if you have only 25,000 images, for several reasons:
+
+Advanced Features: The ResNeXt model combines the best parts of VGG, ResNet, and Inception models. This mix helps it learn complex patterns and details in images, which is essential for recognizing different emotions.
+
+CBAM Attention Mechanism: CBAM stands for Convolutional Block Attention Module. It helps the model focus on the important parts of an image that show emotions, like a smile, while ignoring the less important parts. This makes the model more accurate.
+
+Efficient Learning: Because the ResNeXt model has multiple paths for data to travel through, it can learn faster and more effectively. This is especially useful when you don't have a huge amount of data. With 25,000 images, the model can still learn to detect emotions well because it makes the most out of each image.
+
+Generalization: The combination of ResNeXt and CBAM helps the model generalize better. This means it can apply what it learned from the 25,000 training images to new, unseen images. This is crucial for tasks like emotion detection where the model needs to perform well on a variety of faces and expressions.
+
+In summary, the ResNeXt model with CBAM is powerful and efficient, making it an excellent choice for detecting emotions even with a relatively small dataset of 25,000 images.
+
+Previous iterations
+
+Initial Model (ResNet50):
+Used standard initialization.
+    Weak data augmentation.
+    No oversampling.
+    Step learning rate scheduler (30 epochs, gamma 0.1).
+    Achieved ≈ 65% validation accuracy and test accuracy.
+Exploration and Modifications:
+    Studied research papers and watched Stanford CS231n Winter 2016 lectures.
+Tried a normal ResNeXt50 model.
+    Achieved a peak validation accuracy of ≈ 80% (red line in the graph).
+
+Enhancements (ResNeXt50):
+    Increased data augmentation.
+    Implemented oversampling.
+    Applied label smoothing.
+    Used dropout.
+    Employed ReduceLROnPlateau with factor 0.1 and patience 7.
+Resulted in ≈ 87% validation accuracy.
+Test accuracy was 74%.
+Further Improvement (CBAM Module):
+    Implemented the CBAM (Convolutional Block Attention Module) module.
+Achieved 82% test accuracy.
+
