@@ -1,15 +1,18 @@
 import torch
 from model.ResNeXt import resnext50
 from visualize import GradCAM
-from visualize.visualize import visualize_dataset
+from visualize.visualize import visualize_dataset, visualize_predictions
 from dataset.ImageDataset import ImageDataset
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchsummary import summary  # Importing summary
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 import time
+from visualize import GradCAM
+import sys
 
 warnings.filterwarnings("ignore")
 
@@ -53,7 +56,7 @@ def test(model):
     test_df = ImageDataset('./data/test_with_emotions.csv', transform=transform)
 
     #visualize_dataset(test_df, num_images=64)
-    test_loader = DataLoader(test_df, batch_size=128, shuffle=True, num_workers=8, pin_memory=True)
+    test_loader = DataLoader(test_df, batch_size=256, shuffle=True, num_workers=8, pin_memory=True)
 
     correct = 0
     total = 0
@@ -84,8 +87,8 @@ def test(model):
             correct += (predicted == labels).sum().item()
 
             # Analyze Grad-CAM for the first batch only
-            #analyze_with_gradcam(images, labels, model, grad_cam, device, num_samples=5)
-            #break  # Only analyze the first batch for Grad-CAM
+            # analyze_with_gradcam(images, labels, model, grad_cam, device, num_samples=5)
+            # break  # Only analyze the first batch for Grad-CAM
 
     accuracy = 100 * correct / total
     avg_time_per_image = total_time / num_images
@@ -97,11 +100,21 @@ def test(model):
 
 def main():
 
-    model = resnext50().to(device)
-    checkpoint = torch.load('checkpoint.pth')
-    model.load_state_dict(checkpoint['model_state_dict'])
+    # model = resnext50().to(device)
+    # checkpoint = torch.load('checkpoint.pth', map_location=device)
+    # model.load_state_dict(checkpoint['model_state_dict'])
+
+    model = torch.load('my_own_model.pkl', map_location=device)
     model.eval()
 
+    # Redirect stdout to a file
+    with open('model_summary.txt', 'w') as f:
+        original_stdout = sys.stdout  # Save a reference to the original standard output
+        sys.stdout = f  # Redirect standard output to the file
+        summary(model, input_size=(1, 224, 224))  # Print the summary
+        sys.stdout = original_stdout  # Reset standard output to its original value
+    
+    print("Testing the model...")
     test(model)
 
 if __name__ == "__main__":
