@@ -110,7 +110,7 @@ def main():
     # checkpoint = torch.load('checkpoint.pth', map_location=device)
     # model.load_state_dict(checkpoint['model_state_dict'])
 
-    model = torch.load('my_own_model.pkl', map_location=device)
+    model = torch.load('./model/my_own_model.pkl', map_location=device)
     model.eval()
 
     # Redirect stdout to a file
