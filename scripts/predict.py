@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add the root directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import torch
 from model.ResNeXt import resnext50
 from visualize import GradCAM
@@ -12,7 +18,7 @@ import matplotlib.pyplot as plt
 import warnings
 import time
 from visualize import GradCAM
-import sys
+
 
 warnings.filterwarnings("ignore")
 
@@ -93,7 +99,7 @@ def test(model):
     accuracy = 100 * correct / total
     avg_time_per_image = total_time / num_images
 
-    print(f"Test accuracy: {accuracy:.2f}%")
+    print(f"Accuracy on test set: {accuracy:.0f}%")
     print(f"Average time per image: {avg_time_per_image:.4f} seconds")
 
     return accuracy, avg_time_per_image
