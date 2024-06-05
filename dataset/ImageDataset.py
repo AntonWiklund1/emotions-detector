@@ -23,10 +23,9 @@ class ImageDataset(Dataset):
         
         if self.filter:
             self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.contains_face)]
-
-        self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.is_valid_image)]
-        self.data_frame = self.remove_duplicate_images(self.data_frame)
-        print(f"Filtered to {len(self.data_frame)} images")
+            self.data_frame = self.data_frame[self.data_frame['pixels'].apply(self.is_valid_image)]
+            self.data_frame = self.remove_duplicate_images(self.data_frame)
+            print(f"Filtered to {len(self.data_frame)} images")
 
         self.data_frame.reset_index(drop=True, inplace=True)
 
