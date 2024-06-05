@@ -36,16 +36,22 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[mean], std=[std])
 ])
 
-# Define the duration of the video
-duration = 20  # seconds
-
 # Use the input video file for testing
+# Uncomment the following lines to use the input video file and comment the next lines
+# cap = cv2.VideoCapture('./results/input_video.mp4')
+# if not cap.isOpened():
+#     print("Cannot open video file")
+#     exit()
+# print("Reading video stream ...")
+
+
 cap = cv2.VideoCapture(0)
 use_camera = cap.isOpened()
 
 if not use_camera:
     cap = cv2.VideoCapture('./results/input_video.mp4')
     print("Reading video stream ...")
+
 
 # Initialize the VideoWriter object for grayscale images
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Define the codec
@@ -55,7 +61,7 @@ out_grayscale = cv2.VideoWriter('./results/output.mp4', fourcc, fps, (48, 48), F
 # Initialize the VideoWriter object for the original frames
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-out_original = cv2.VideoWriter('./results/input_video.mp4', fourcc, fps, (frame_width, frame_height), True)  # True for color
+out_original = cv2.VideoWriter('./results/input_video_.mp4', fourcc, fps, (frame_width, frame_height), True)  # True for color
 
 # Load pre-trained model and configuration file for face detection
 model_file = "deploy.prototxt"  # Path to the .prototxt file
@@ -122,9 +128,6 @@ while cap.isOpened():
 
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) == ord('q'):
-        break
-
-    if time.time() - start_time > duration:
         break
 
 cap.release()
