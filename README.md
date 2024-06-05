@@ -27,7 +27,7 @@ to run the code
 ``` bash
    pip install -r requirements.txt
 ```
-4. download the models latest checkpoint from (https://drive.google.com/file/d/11ce8kRUZ8rETBFT84_TuasEm7MWgLkVv/view?usp=drive_link) and place it in the root folder
+4. download the models latest checkpoint from (https://drive.google.com/file/d/11ce8kRUZ8rETBFT84_TuasEm7MWgLkVv/view?usp=drive_link) and place it in the root folder if the ./model/my_own_model.pkl
 
 5. test the model
 ``` bash
