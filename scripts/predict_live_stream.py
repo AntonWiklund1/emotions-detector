@@ -23,9 +23,7 @@ for f in files:
 
 # Load the model
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = resnext50().to(device)
-checkpoint = torch.load('checkpoint.pth', map_location=device)
-model.load_state_dict(checkpoint['model_state_dict'])
+model = torch.load('./model/my_own_model.pkl', map_location=device)
 model.eval()
 
 # Load the mean and std for normalization
